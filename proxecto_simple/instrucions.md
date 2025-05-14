@@ -19,7 +19,7 @@ simple-k8s-app/
 ├── frontend/
 │   ├── index.html
 │   └── Dockerfile
-├── k8s/
+├── proxecto-simple/
 │   ├── mysql.yaml
 │   ├── backend.yaml
 │   └── frontend.yaml
@@ -49,13 +49,13 @@ eval $(minikube docker-env)
 
 ```bash
 # Despregamos a base de datos (opcional)
-kubectl apply -f k8s/mysql.yaml
+kubectl apply -f proxecto-simple/mysql.yaml
 
 # Despregamos o backend Flask
-kubectl apply -f k8s/backend.yaml
+kubectl apply -f proxecto-simple/backend.yaml
 
 # Despregamos o frontend en Nginx
-kubectl apply -f k8s/frontend.yaml
+kubectl apply -f proxecto-simple/frontend.yaml
 ```
 
 ---
@@ -103,9 +103,9 @@ http://<IP>:30080
 ## Limpando o entorno
 
 ```bash
-kubectl delete -f k8s/frontend.yaml
-kubectl delete -f k8s/backend.yaml
-kubectl delete -f k8s/mysql.yaml
+kubectl delete -f proxecto-simple/frontend.yaml
+kubectl delete -f proxecto-simple/backend.yaml
+kubectl delete -f proxecto-simple/mysql.yaml
 ```
 
 ---

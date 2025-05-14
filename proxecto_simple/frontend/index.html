@@ -7,7 +7,7 @@
   <h1>Frontend básico!</h1>
   <p id="response">Cargando resposta do backend...</p>
   <script>
-    fetch('http://backend:5000/')
+    fetch('/api/')
       .then(response => response.text())
       .then(data => {
         document.getElementById('response').innerText = data;
