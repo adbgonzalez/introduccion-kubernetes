@@ -96,3 +96,50 @@ kubectl expose deployment hello-world --type=NodePort --port=8080
 minikube service hello-world
 ```
 
+---
+
+# Introdución ás probes
+
+## Liveness Probe
+
+- Comproba se o contedor está **vivo**.
+- Se falla, Kubernetes **reinicia** o contedor.
+
+```yaml
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 5000
+  initialDelaySeconds: 10
+  periodSeconds: 5
+```
+
+## Readiness Probe
+
+- Comproba se o contedor está **listo para recibir tráfico**.
+- Se falla, **non se enruta tráfico ao Pod**.
+
+```yaml
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: 5000
+  initialDelaySeconds: 5
+  periodSeconds: 3
+```
+
+## Tipos de probes soportadas
+
+- `httpGet`
+- `exec`
+- `tcpSocket`
+
+---
+
+## Ventaxas do uso de probes
+
+- Maior dispoñibilidade e fiabilidade.
+- Despregue máis robusto.
+- Detección automática de fallos.
+
+---

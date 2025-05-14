@@ -11,7 +11,7 @@ Este documento describe como despregar unha aplicación web sinxela en Kubernete
 ## Estrutura do proxecto
 
 ```
-simple-k8s-app/
+proxecto-simple/
 ├── backend/
 │   ├── app.py
 │   ├── requirements.txt
@@ -19,10 +19,10 @@ simple-k8s-app/
 ├── frontend/
 │   ├── index.html
 │   └── Dockerfile
-├── proxecto-simple/
-│   ├── mysql.yaml
-│   ├── backend.yaml
-│   └── frontend.yaml
+├── mysql.yaml
+├── backend.yaml
+├── frontend.yaml
+
 ```
 
 ---
@@ -37,7 +37,7 @@ docker build -t backend-image ./backend
 docker build -t frontend-image ./frontend
 ```
 
-Se estás usando Minikube, activa o contorno Docker dentro del:
+Se estás usando Minikube, activa o contorno Docker dentro del **antes de construir as imaxes**:
 
 ```bash
 eval $(minikube docker-env)
