@@ -122,18 +122,32 @@ minikube start --driver docker
 ```bash
 minikube delete
 minikube rm -rf ~/minikube
+minikube start
 ```
+### 0. Asegurarse de limpar restos previos (só tras intentos fallidos)
+```bash
+kubectl delete svc hello-world --ignore-not-found
+kubectl delete deploy hello-world --ignore-not-found
 
+# (Opcional) Eliminar calquera resto co mesmo label
+kubectl delete all -l app=hello-world --ignore-not-found
+
+```
 ### 1. Crear un Deployment
 
 ```bash
-kubectl create deployment hello-world --image=k8s.gcr.io/echoserver:1.4
+kubectl create deployment hello-world \
+  --image=registry.k8s.io/echoserver:1.10 \
+  --port=8080
 ```
 
 ### 2. Expor o servizo
 
 ```bash
-kubectl expose deployment hello-world --type=NodePort --port=8080
+kubectl expose deployment hello-world \
+  --type=NodePort \
+  --port=8080 \
+  --target-port=8080
 ```
 
 ### 3. Acceder ao servizo
