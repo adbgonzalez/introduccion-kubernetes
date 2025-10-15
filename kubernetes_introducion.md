@@ -61,7 +61,53 @@ No desenvolvemento actual, os **contedores** permiten empaquetar unha aplicació
 | `Volume` e `PersistentVolumeClaim (PVC)` | Gardan datos persistentes. |
 
 ---
+# Instalación
+## En Ubuntu
+### 1. Actualizar repositorios e instalar dependencias
 
+```bash
+sudo apt update
+sudo apt upgrade -y
+sudo apt install -y curl wget apt-transport-https
+```
+
+---
+
+### 2. Instalar **Minikube**
+
+Descargar e instalar a última versión dispoñible:
+
+```bash
+curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+sudo install minikube-linux-amd64 /usr/local/bin/minikube
+rm minikube-linux-amd64
+```
+
+Verificar a instalación:
+
+```bash
+minikube version
+```
+
+---
+
+### 3. Instalar **kubectl**
+
+Descargar o binario estable e movelo ao sistema:
+
+```bash
+curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+chmod +x kubectl
+sudo mv kubectl /usr/local/bin/kubectl
+```
+
+Verificar a instalación:
+
+```bash
+kubectl version --client
+```
+
+---
 # Primeiro exemplo: Hello World
 
 ## Requisitos
