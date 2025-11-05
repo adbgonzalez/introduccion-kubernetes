@@ -52,7 +52,7 @@ Foi creada por **Google**, baseada na súa experiencia interna con Borg, e actua
 # Arquitectura de Kubernetes
 
 Kubernetes ten unha arquitectura **cliente-servidor** dividida en dous compoñentes principais: o **Control Plane** (ou plano de control) e os **nós de traballo** (*worker nodes*).
-
+![Arquitectura de kubernetes](img/Kubernetes-architecture-diagram-1-1.png)
 ## Control Plane (nó mestre)
 
 É o cerebro de Kubernetes: xestiona o estado desexado do clúster e toma decisións sobre onde e como se executan os contedores.
@@ -75,73 +75,72 @@ Son as máquinas (físicas ou virtuais) onde realmente se executan os contedores
 
 # Recursos fundamentais de Kubernetes
 
+Kubernetes organízase en torno a obxectos que describen o estado desexado do clúster: aplicacións despregadas, recursos de rede, almacenamento, seguridade, etc.  
+A seguinte táboa resume os principais **recursos fundamentais**:
+
 | Elemento | Descrición | Exemplo de uso |
 |-----------|-------------|----------------|
 | **Pod** | Unidade mínima de execución. Pode conter un ou varios contedores. | Un microservizo web con Nginx. |
 | **Deployment** | Xestiona réplicas de Pods, actualizacións e *rollbacks*. | Escalar un servizo de API REST. |
+| **StatefulSet** | Mantén identidade e almacenamento fixo para cada Pod. | Despregue dunha base de datos. |
+| **DaemonSet** | Executa un Pod en cada nodo do clúster. | Axente de monitorización. |
+| **Job / CronJob** | Execución única ou programada de tarefas. | Xerar informes diarios. |
 | **Service** | Expón un conxunto de Pods cunha IP estable. | Balancear tráfico entre réplicas. |
+| **Ingress** | Regras HTTP/HTTPS externas para acceder a servizos. | Expor unha aplicación web pública. |
 | **Namespace** | Aíllamento lóxico de recursos. | Separar dev/test/prod. |
 | **ConfigMap** | Gardar configuracións non sensibles. | Variables de contorno dunha app. |
-| **Secret** | Gardar datos sensibles (tokens, contrasinais). | Conexións a bases de datos. |
-| **Volume / PVC** | Almacenamento persistente para datos. | Gardar logs, ficheiros ou BBDD. |
-| **Ingress** | Regras HTTP externas para acceder a servizos. | Expor unha aplicación web pública. |
+| **Secret** | Gardar datos sensibles (tokens, contrasinais). | Credenciais de base de datos. |
+| **Volume / PVC** | Almacenamento persistente para datos. | Gardar logs ou ficheiros. |
+| **StorageClass** | Define a política de aprovisionamento dinámico de volumes. | Crear PVC automaticamente. |
+| **RBAC (Roles, Bindings)** | Controla permisos e acceso a recursos. | Limitar accións dun usuario. |
+| **Autoscaler (HPA/VPA)** | Escala pods horizontal ou verticalmente. | Adaptar a carga de traballo. |
+| **NetworkPolicy** | Define regras de tráfico entre Pods. | Illar servizos críticos. |
 
 ---
 
-# Tipos de Services en Kubernetes
+## Pods
 
-Os **Services** proporcionan un punto de acceso estable aos Pods, xa que as IP dos Pods poden cambiar cando se recrean. Hai varios tipos segundo o nivel de accesibilidade:
+O **Pod** é a unidade mínima de execución en Kubernetes. Contén un ou varios contedores que comparten rede e volumes.
 
-| Tipo | Descrición | Uso típico |
-|------|-------------|------------|
-| **ClusterIP** | IP interna accesible só dentro do clúster. É o valor por defecto. | Comunicación entre microservizos. |
-| **NodePort** | Abre un porto no nodo (entre 30000-32767) accesible dende fóra. | Probas locais con Minikube. |
-| **LoadBalancer** | Crea un balanceador externo (en cloud). | Aplicacións en produción en GKE, EKS, etc. |
-| **ExternalName** | Asocia un nome DNS interno cun externo. | Redirixir servizos a outro dominio. |
+### Tipos de Pods (por uso)
 
-### Diagrama conceptual
+| Tipo | Descrición | Exemplo |
+|------|-------------|----------|
+| **Independente** | Creado manualmente, sen controladores. | Proba puntual dun contedor. |
+| **Controlado** | Xestionado por Deployment, StatefulSet, etc. | Servizo web replicado. |
+| **Multi-container** | Varios contedores colaboran no mesmo Pod. | Patrón *sidecar* (proxy + app). |
+| **Efémero** | Engadido temporalmente para depurar. | `kubectl debug pod` |
 
-```
-[Cliente]
-   |
-[Service: NodePort / LoadBalancer]
-   |
-[ClusterIP interno]
-   |
-[Pods do Deployment]
-```
-
-Exemplo de Service con NodePort:
+Exemplo básico:
 
 ```yaml
 apiVersion: v1
-kind: Service
+kind: Pod
 metadata:
-  name: web-service
+  name: exemplo-pod
 spec:
-  selector:
-    app: web
-  ports:
-    - port: 80
-      targetPort: 8080
-      nodePort: 31000
-  type: NodePort
+  containers:
+    - name: nginx
+      image: nginx:1.27-alpine
+      ports:
+        - containerPort: 80
 ```
 
 ---
 
-# Tipos de Deployment e estratexias de actualización
+## Controladores de Pods (*Controllers*)
 
-O **Deployment** define como se crean, actualizan e manteñen os Pods dunha aplicación.
+Os *Controllers* xestionan a creación, actualización e dispoñibilidade dos Pods. Permiten despregues declarativos e tolerancia a fallos.
 
-| Estratexia | Descrición | Uso recomendado |
-|-------------|-------------|----------------|
-| **Recreate** | Elimina todos os Pods antigos antes de crear os novos. | Cando non se poden ter dúas versións á vez (ex: BBDD). |
-| **RollingUpdate** | Substitúe gradualmente os Pods antigos por novos (por defecto). | Despregue continuo sen interrupción. |
-| **Blue/Green** | Dúas versións simultáneas: “blue” (actual) e “green” (nova). | Entornos con probas de integración. |
-| **Canary** | Libera a nova versión só a unha parte dos usuarios. | Testeo gradual en produción. |
+| Tipo | Características | Uso típico |
+|------|------------------|-------------|
+| **Deployment** | Xestiona réplicas e actualizacións continuas. | Aplicacións sen estado. |
+| **StatefulSet** | Mantén identidade e almacenamento persistente. | BBDD, Kafka, Redis... |
+| **DaemonSet** | Un Pod por nodo, ideal para servizos do sistema. | Axentes de logs ou métricas. |
+| **Job** | Executa unha tarefa única e remata. | Procesado batch. |
+| **CronJob** | Lanza Jobs de forma periódica. | Backups, tarefas programadas. |
 
-Exemplo básico de Deployment:
+Exemplo de Deployment:
 
 ```yaml
 apiVersion: apps/v1
@@ -167,64 +166,65 @@ spec:
             - containerPort: 80
 ```
 
+Exemplo de CronJob:
+
+```yaml
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: limpeza-logs
+spec:
+  schedule: "0 2 * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - name: limpeza
+              image: busybox
+              command: ["sh", "-c", "rm -rf /var/log/*.log"]
+          restartPolicy: OnFailure
+```
+
 ---
 
-# Volumes e almacenamento
+## Services
 
-Os contedores son efémeros, polo que Kubernetes emprega **Volumes** para manter datos persistentes.
+Os **Services** proporcionan un punto de acceso estable a un conxunto de Pods, que poden recrearse ou cambiar de IP.
 
-## Tipos comúns
+| Tipo | Descrición | Uso típico |
+|------|-------------|------------|
+| **ClusterIP** | IP interna accesible só dentro do clúster. | Comunicación entre microservizos. |
+| **NodePort** | Abre un porto no nodo accesible dende fóra. | Probas locais con Minikube. |
+| **LoadBalancer** | Crea un balanceador externo (cloud). | Aplicacións en produción. |
+| **ExternalName** | Redirixe a un dominio externo. | Servizos externos. |
 
-| Tipo | Descrición | Persistencia |
-|------|-------------|--------------|
-| **emptyDir** | Directorio temporal creado co Pod e eliminado ao borralo. | ❌ |
-| **hostPath** | Usa un directorio do nodo anfitrión. | ⚠️ (dependente do nodo) |
-| **configMap / secret** | Volume xerado a partir destes recursos. | ⚠️ (segundo o recurso) |
-| **persistentVolumeClaim (PVC)** | Volume provisionado dinámicamente ou ligado a un PV. | ✅ |
-
-Exemplo de PVC:
+Exemplo con NodePort:
 
 ```yaml
 apiVersion: v1
-kind: PersistentVolumeClaim
+kind: Service
 metadata:
-  name: datos-app
+  name: web-service
 spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 1Gi
-```
-
-Exemplo de uso no Deployment:
-
-```yaml
-volumeMounts:
-  - name: datos
-    mountPath: /usr/share/nginx/html
-volumes:
-  - name: datos
-    persistentVolumeClaim:
-      claimName: datos-app
+  selector:
+    app: web
+  ports:
+    - port: 80
+      targetPort: 8080
+      nodePort: 31000
+  type: NodePort
 ```
 
 ---
 
-# Networking e Ingress
+## Ingress e NetworkPolicy
 
-Cada Pod ten a súa propia IP e comunícase libremente cos demais.  
-Os **Servizos** proporcionan IPs estables e balanceo de carga.
+### Ingress
 
-### Tipos de acceso
+Define regras HTTP/HTTPS externas para acceder aos *Services*.
 
-| Tipo | Alcance | Exemplo |
-|------|----------|---------|
-| **ClusterIP** | Interno ao clúster | `curl http://web-service` dende outro Pod |
-| **NodePort** | Porto accesible dende o exterior | `minikube service web-service` |
-| **Ingress** | Regras HTTP externas | `http://app.local` |
-
-### Exemplo de Ingress
+Exemplo básico:
 
 ```yaml
 apiVersion: networking.k8s.io/v1
@@ -247,13 +247,346 @@ spec:
                   number: 80
 ```
 
+### NetworkPolicy
+
+As **NetworkPolicies** controlan o tráfico de rede entre Pods.
+
+| Tipo | Descrición | Exemplo |
+|------|-------------|---------|
+| **Ingress** | Define que tráfico pode entrar a un Pod. | Só aceptar conexións dun namespace concreto. |
+| **Egress** | Define a saída de tráfico desde un Pod. | Limitar acceso a Internet. |
+
+Exemplo:
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: permitir-app
+spec:
+  podSelector:
+    matchLabels:
+      app: backend
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: frontend
+```
+
+---
+
+## ConfigMaps e Secrets
+
+Permiten **parametrizar aplicacións** sen modificar imaxes.
+
+| Tipo | Contido | Persistencia | Exemplo |
+|------|----------|--------------|----------|
+| **ConfigMap** | Configuración non sensible. | Non cifrado. | Nome de aplicación, modo debug. |
+| **Secret** | Datos sensibles (tokens, contrasinais). | Codificado base64. | Credenciais, chaves API. |
+
+Exemplo de ConfigMap:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+data:
+  modo: producion
+  port: "8080"
+```
+
+Exemplo de Secret:
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: db-secret
+type: Opaque
+data:
+  usuario: YWRtaW4=
+  contrasinal: c2VjcmV0
+```
+
+Montaxe como variables de contorno:
+
+```yaml
+envFrom:
+  - configMapRef:
+      name: app-config
+  - secretRef:
+      name: db-secret
+```
+
+---
+
+## Volumes, PVC e StorageClass
+
+Os contedores son efémeros, polo que Kubernetes emprega **Volumes** para persistir datos.
+
+### Tipos de Volumes
+
+| Tipo | Descrición | Persistencia |
+|------|-------------|--------------|
+| **emptyDir** | Directorio temporal, elimínase co Pod. | ❌ |
+| **hostPath** | Directorio do nodo anfitrión. | ⚠️ (dependente do nodo) |
+| **configMap / secret** | Volume xerado dende eses recursos. | ⚠️ |
+| **persistentVolumeClaim (PVC)** | Volume provisionado dinámicamente. | ✅ |
+
+Exemplo de PVC:
+
+```yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: datos-app
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+```
+
+Exemplo de uso nun Deployment:
+
+```yaml
+volumeMounts:
+  - name: datos
+    mountPath: /usr/share/nginx/html
+volumes:
+  - name: datos
+    persistentVolumeClaim:
+      claimName: datos-app
+```
+
+### StorageClass
+
+Define o tipo de almacenamento e a política de aprovisionamento:
+
+```yaml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: rapido
+provisioner: kubernetes.io/aws-ebs
+parameters:
+  type: gp2
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+```
+
+---
+
+## Namespaces
+
+Os **Namespaces** permiten dividir o clúster en espazos lóxicos illados.  
+É útil para separar entornos (*dev*, *test*, *prod*) ou equipos.
+
+```yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: dev
+```
+
+Comandos útiles:
+
+```bash
+kubectl get namespaces
+kubectl get pods -n dev
+```
+
+---
+
+## RBAC (Roles e permisos)
+
+O sistema **RBAC** (*Role-Based Access Control*) controla quen pode facer que accións sobre que recursos.
+
+| Recurso | Función | Alcance |
+|----------|----------|---------|
+| **Role** | Define permisos nun namespace. | Local |
+| **ClusterRole** | Define permisos globais. | Clúster |
+| **RoleBinding** | Asocia Role a usuario/grupo. | Local |
+| **ClusterRoleBinding** | Asocia ClusterRole. | Global |
+| **ServiceAccount** | Identidade usada polos Pods. | Namespace |
+
+Exemplo de Role e RoleBinding:
+
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: lector-pods
+  namespace: dev
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: vinculo-lector
+  namespace: dev
+subjects:
+  - kind: User
+    name: ana
+roleRef:
+  kind: Role
+  name: lector-pods
+  apiGroup: rbac.authorization.k8s.io
+```
+
+---
+
+## Autoscalers
+
+Os **Autoscalers** permiten adaptar automaticamente os recursos segundo a carga.
+
+| Tipo | Descrición | Axuste |
+|------|-------------|--------|
+| **HorizontalPodAutoscaler (HPA)** | Escala número de réplicas. | Horizontal |
+| **VerticalPodAutoscaler (VPA)** | Axusta CPU/memoria dun Pod. | Vertical |
+
+Exemplo de HPA:
+
+```yaml
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: api-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: api
+  minReplicas: 2
+  maxReplicas: 5
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 75
+```
+
+---
+
+## Esquema xeral de relación entre recursos
+
+```
+[User / DevOps]
+       |
+   [kubectl / API Server]
+       |
+ [Namespace: dev/test/prod]
+       |
+ [Deployment / StatefulSet / DaemonSet]
+       |
+     [Pods] <---> [ConfigMap / Secret / PVC]
+       |
+   [Service] <---> [Ingress / NetworkPolicy]
+       |
+ [Cluster networking + Autoscaling]
+```
+
 ---
 
 # Configuración con YAML
 
-Kubernetes funciona de forma **declarativa**: describimos o estado desexado do sistema, e o clúster encárgase de levalo a cabo.
+Kubernetes funciona de forma **declarativa**: definimos o estado desexado do sistema e o clúster encárgase de facer que o estado real coincida con el. Ao crear un obxecto en YAML estamos dicindo: “isto é o que quero que teña o meu clúster”. ([Guía oficial de obxectos en Kubernetes](https://kubernetes.io/docs/concepts/overview/working-with-objects/?utm_source=chatgpt.com))
 
-Exemplo completo de Deployment:
+## Estrutura básica dun manifesto
+
+Todos os manifestos comparten a seguinte estrutura común:
+
+```yaml
+apiVersion: <grupo/versión>   # Exemplo: v1, apps/v1, networking.k8s.io/v1
+kind: <Recurso>               # Exemplo: Pod, Deployment, Service, Ingress…
+metadata:
+  name: <nome>
+  namespace: <opcional>       # Se non se especifica, usa “default”
+  labels:                     # Etiquetas opcionais para organización
+    app: <etiqueta>
+spec:
+  # Contido específico do recurso
+```
+
+### Que significa cada apartado
+- **apiVersion**: Indica o grupo de API e versión deste recurso.  
+- **kind**: Tipo de obxecto que creas.  
+- **metadata**: Información de identificación: nome, etiquetas, etc.  
+- **spec**: A configuración que desexas aplicar (o estado “querido”).  
+- (Adicionalmente os obxectos teñen un campo `status`, pero ese é xestionado polo sistema e non o escribes ti). ([Conceptos sobre obxectos en Kubernetes](https://kubernetes.io/es/docs/concepts/overview/working-with-objects/kubernetes-objects/?utm_source=chatgpt.com))
+
+---
+
+## Parámetros típicos por recurso
+
+### Pod e Containers (base para todos os recursos)
+
+Os **Pods** son a unidade mínima de execución en Kubernetes. Cada Pod pode conter un ou varios **containers** que comparten rede e volumes. A maioría dos recursos (Deployment, Job, StatefulSet...) crean Pods segundo a súa propia configuración.
+
+#### Campos habituais en `spec` dun Pod
+
+| Campo | Descrición | Exemplo |
+|--------|-------------|---------|
+| `containers[]` | Lista de contedores principais. | `image: nginx:1.27-alpine` |
+| `initContainers[]` | Contedores que se executan antes dos principais. | Migracións de base de datos. |
+| `volumes[]` | Volumes dispoñibles no Pod. | PVC, ConfigMap, Secret… |
+| `restartPolicy` | Política de reinicio (`Always`, `OnFailure`, `Never`). | `Always` (por defecto). |
+| `nodeSelector` / `affinity` | Controla onde se executa o Pod. | Afinidade por etiquetas de nodo. |
+| `serviceAccountName` | Conta de servizo asociada (RBAC). | `ansible-service` |
+
+#### Campos típicos de `containers[]`
+
+| Campo | Descrición | Exemplo |
+|--------|-------------|---------|
+| `name` | Nome interno do contedor. | `web` |
+| `image` | Imaxe a despregar. | `nginx:alpine` |
+| `ports[]` | Portos expostos polo contedor. | `containerPort: 80` |
+| `env` / `envFrom` | Variables de contorno. | `envFrom: configMapRef:` |
+| `resources.requests/limits` | Reservas de CPU/RAM. | `cpu: "100m", memory: "128Mi"` |
+| `volumeMounts[]` | Montaxes de volumes no contedor. | `mountPath: /data` |
+| `livenessProbe` / `readinessProbe` | Verificacións de saúde. | HTTP GET `/` en porto 80 |
+
+**Exemplo mínimo dun Pod:**
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: exemplo-pod
+spec:
+  containers:
+    - name: web
+      image: nginx:1.27-alpine
+      ports:
+        - containerPort: 80
+```
+
+---
+
+### Deployment (apps/v1)
+
+Un **Deployment** xestiona a creación e actualización dun grupo de Pods idénticos. É o recurso máis usado para despregar aplicacións “sen estado” (*stateless*).
+
+#### Campos habituais
+
+| Campo | Descrición | Exemplo |
+|--------|-------------|---------|
+| `replicas` | Número de réplicas do Pod. | `3` |
+| `selector.matchLabels` | Debe coincidir coas etiquetas do template. | `app: webapp` |
+| `template.metadata.labels` | Etiquetas dos Pods creados. | `app: webapp` |
+| `template.spec.containers` | Definición dos contedores (ver sección anterior). | `image: nginx:alpine` |
+| `strategy.type` | Estratexia de actualización (`RollingUpdate`, `Recreate`). | `RollingUpdate` |
+| `minReadySeconds` | Tempo mínimo antes de considerar un Pod listo. | `5` |
+
+**Exemplo completo de Deployment:**
 
 ```yaml
 apiVersion: apps/v1
@@ -275,13 +608,125 @@ spec:
           image: nginx:latest
           ports:
             - containerPort: 80
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "250m"
+              memory: "256Mi"
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 3
+            periodSeconds: 5
 ```
 
 ---
 
-# ConfigMaps e Secrets
+### Service (v1)
+- `type`: tipo de servizo (ClusterIP, NodePort, LoadBalancer, ExternalName).  
+- `selector`: etiquetas que indican que Pods serán “atendidos” polo servizo.  
+- `ports[]`: define `port`, `targetPort`, e para tipos NodePort o `nodePort`.  
+- Documentación completa de [Services en Kubernetes](https://kubernetes.io/docs/concepts/services-networking/service/?utm_source=chatgpt.com).
 
-## ConfigMap
+### Ingress (networking.k8s.io/v1)
+- `rules[]`: definición de host/path -> backend service.  
+- `tls[]`: se vas usar HTTPS, certificados, etc.  
+- As anotacións (annotations) dependen do controlador de Ingress que uses.  
+- Documentación oficial de [Ingress](https://kubernetes.io/docs/concepts/services-networking/ingress/?utm_source=chatgpt.com).
+
+### ConfigMap & Secret (v1)
+- **ConfigMap**: usado para configuracións non sensibles. Campo `data:` con pares clave/valor.  
+- **Secret**: usado para datos sensibles (tokens, contrasinais). Os valores están base64 codificados.  
+- Montaxes típicas: como variables de contorno (envFrom) ou como volume.  
+- Referencia: [ConfigMaps e Secrets](https://kubernetes.io/docs/concepts/configuration/secret/?utm_source=chatgpt.com)
+
+### Volumes / PVC / StorageClass
+- **PersistentVolumeClaim (PVC)**: `accessModes` (ex: ReadWriteOnce), `resources.requests.storage`, `storageClassName` se o usas.  
+- **StorageClass**: define como provisionar volumes dinámicamente.  
+- [Xestión declarativa de obxectos e almacenamento](https://kubernetes.io/docs/tasks/manage-kubernetes-objects/declarative-config/?utm_source=chatgpt.com)
+
+### Namespaces
+- Usados para illar recursos dentro dun clúster. Os nomes deben ser únicos dentro dun namespace, pero poden repetirse en diferentes namespaces.  
+- [Documentación sobre Namespaces](https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/?utm_source=chatgpt.com)
+
+---
+
+## Plantillas mínimas para comezar
+
+### 1) Deployment + Service
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: myapp
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: myapp
+  template:
+    metadata:
+      labels:
+        app: myapp
+    spec:
+      containers:
+        - name: web
+          image: nginx:1.27-alpine
+          ports:
+            - containerPort: 80
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "250m"
+              memory: "256Mi"
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 3
+            periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: myapp
+spec:
+  type: ClusterIP
+  selector:
+    app: myapp
+  ports:
+    - port: 80
+      targetPort: 80
+```
+
+### 2) Ingress para o servizo anterior
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: myapp-ingress
+spec:
+  rules:
+    - host: myapp.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: myapp
+                port:
+                  number: 80
+```
+
+### 3) ConfigMap + uso no Deployment
 
 ```yaml
 apiVersion: v1
@@ -289,11 +734,31 @@ kind: ConfigMap
 metadata:
   name: app-config
 data:
-  APP_MODE: "production"
-  TIMEOUT: "30"
+  MODE: "production"
+  PORT: "8080"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: myapp-config
+spec:
+  selector:
+    matchLabels:
+      app: myapp-config
+  template:
+    metadata:
+      labels:
+        app: myapp-config
+    spec:
+      containers:
+        - name: web
+          image: nginx:1.27-alpine
+          envFrom:
+            - configMapRef:
+                name: app-config
 ```
 
-## Secret
+### 4) Secret + montaxe como env
 
 ```yaml
 apiVersion: v1
@@ -302,11 +767,111 @@ metadata:
   name: db-secret
 type: Opaque
 data:
-  username: YWRtaW4=   # admin
-  password: c2VjcmV0   # secret
+  DB_USER: YWRtaW4=        # “admin” en base64
+  DB_PASS: c2VjcmV0        # “secret” en base64
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+spec:
+  selector:
+    matchLabels:
+      app: api
+  template:
+    metadata:
+      labels:
+        app: api
+    spec:
+      containers:
+        - name: api
+          image: ghcr.io/example/api:1.0
+          envFrom:
+            - secretRef:
+                name: db-secret
+```
+
+### 5) PVC + uso nun Deployment
+
+```yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: data
+spec:
+  accessModes: [ ReadWriteOnce ]
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: files
+spec:
+  selector:
+    matchLabels:
+      app: files
+  template:
+    metadata:
+      labels:
+        app: files
+    spec:
+      containers:
+        - name: web
+          image: nginx:1.27-alpine
+          volumeMounts:
+            - name: data
+              mountPath: /usr/share/nginx/html
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: data
 ```
 
 ---
+
+## Boas prácticas
+
+- Usa `kubectl explain <recurso>` para ver todos os campos a usar.  
+  [Referencia de kubectl explain](https://kubernetes.io/docs/reference/kubectl/generated/kubectl_explain/?utm_source=chatgpt.com)
+
+- Gárdalos en **vários ficheiros** nun directorio `manifests/` e aplica con:  
+  ```bash
+  kubectl apply -f ./manifests/
+  ```
+  Isto simplifica a xestión e separación de recursos.  
+  [Xestión declarativa de obxectos](https://kubernetes.io/docs/tasks/manage-kubernetes-objects/declarative-config/?utm_source=chatgpt.com)
+
+- Asegúrate de que labels e selectors coincidan correctamente entre Deployment e Service.  
+- Configura `resources.requests` e `resources.limits` sempre que sexa produción para evitar saturacións.  
+- Define probes (`readinessProbe`, `livenessProbe`) para garantir saúde dos contedores.  
+- Se tes varios contornos (dev/test/prod), considera usar **Kustomize** (overlays) para reutilizar base.  
+- Respecta os formatos e nomes recomendados de etiquetas para facer máis amigable a xestión: [etiquetas recomendadas](https://kubernetes.io/docs/concepts/overview/working-with-objects/common-labels/?utm_source=chatgpt.com)
+
+---
+
+## Lista de verificación antes de aplicar un manifesto
+
+- ✅ Está correctamente especificado `apiVersion` e `kind`.  
+- ✅ O recurso `metadata.name` é único dentro do namespace.  
+- ✅ Se aplica un recurso que depende doutro (ex: Service depende de Deployment), o Deployment debe etiquetar correctamente antes de aplicar Service.  
+- ✅ Os campos obrigatorios en `spec` están presentes (consultar con `kubectl explain`).  
+- ✅ Labels e selectors coinciden.  
+- ✅ Se se usan montaxes de almacenamento, o PVC ou volume está provisionado.  
+- ✅ Se usas `type: LoadBalancer` ou ingress, entendes que depende da infraestrutura.  
+- ✅ Aplicas desde un directorio ordenado e usas control de versións nos teus manifestos.
+
+---
+
+## Referencias oficiais para profundizar
+
+- [Conceptos sobre obxectos en Kubernetes](https://kubernetes.io/docs/concepts/overview/working-with-objects/?utm_source=chatgpt.com)  
+- [kubectl explain – Documentación da CLI](https://kubernetes.io/docs/reference/kubectl/generated/kubectl_explain/?utm_source=chatgpt.com)  
+- [Declarative management of Kubernetes objects using configuration files](https://kubernetes.io/docs/tasks/manage-kubernetes-objects/declarative-config/?utm_source=chatgpt.com)  
+- [Namespaces – illamento lóxico de recursos](https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/?utm_source=chatgpt.com)  
+- [Recommended Labels – etiquetas recomendadas](https://kubernetes.io/docs/concepts/overview/working-with-objects/common-labels/?utm_source=chatgpt.com)  
+
 
 # Escalado e actualizacións
 
